@@ -10,6 +10,39 @@ exports[`MovieNightStack matches snapshot 1`] = `
     },
   },
   "Resources": {
+    "MovieNightAccessKeySecretA51061A2": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "MovieNightExecUserAccessKeyAD9C316B",
+      ],
+      "Properties": {
+        "SecretString": {
+          "Fn::Join": [
+            "",
+            [
+              "{"Username":"",
+              {
+                "Ref": "MovieNightUserD03138EC",
+              },
+              "","AccessKeyId":"",
+              {
+                "Ref": "MovieNightExecUserAccessKeyAD9C316B",
+              },
+              "","SecretAccessKey":"",
+              {
+                "Fn::GetAtt": [
+                  "MovieNightExecUserAccessKeyAD9C316B",
+                  "SecretAccessKey",
+                ],
+              },
+              ""}",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::SecretsManager::Secret",
+      "UpdateReplacePolicy": "Delete",
+    },
     "MovieNightExecPolicy39E72BA7": {
       "Properties": {
         "PolicyDocument": {
@@ -59,6 +92,17 @@ exports[`MovieNightStack matches snapshot 1`] = `
         ],
       },
       "Type": "AWS::IAM::Policy",
+    },
+    "MovieNightExecUserAccessKeyAD9C316B": {
+      "DependsOn": [
+        "MovieNightUserD03138EC",
+      ],
+      "Properties": {
+        "UserName": {
+          "Ref": "MovieNightUserD03138EC",
+        },
+      },
+      "Type": "AWS::IAM::AccessKey",
     },
     "MovieNightTableF882A7F3": {
       "DeletionPolicy": "RetainExceptOnCreate",

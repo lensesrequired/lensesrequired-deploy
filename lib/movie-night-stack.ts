@@ -2,6 +2,8 @@ import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
+import {SecretValue} from "aws-cdk-lib";
 
 export class MovieNightStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -65,5 +67,17 @@ export class MovieNightStack extends cdk.Stack {
       ]
     }))
     execUser.node.addDependency(table)
+
+    const accessKey = new iam.AccessKey(this, 'MovieNightExecUserAccessKey', { user: execUser });
+    accessKey.node.addDependency(execUser);
+
+    const secret = new secretsmanager.Secret(this, 'MovieNightAccessKeySecret', {
+      secretObjectValue: {
+        Username: SecretValue.unsafePlainText(execUser.userName),
+        AccessKeyId: SecretValue.unsafePlainText(accessKey.accessKeyId),
+        SecretAccessKey: accessKey.secretAccessKey
+      },
+    });
+    secret.node.addDependency(accessKey)
   }
 }
