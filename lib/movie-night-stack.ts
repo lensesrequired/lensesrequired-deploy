@@ -1,9 +1,10 @@
 import * as cdk from 'aws-cdk-lib';
-import { Construct } from 'constructs';
+import {SecretValue} from 'aws-cdk-lib';
+import {Construct} from 'constructs';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
+import {ProjectionType} from 'aws-cdk-lib/aws-dynamodb';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
-import {SecretValue} from "aws-cdk-lib";
 
 export class MovieNightStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -24,10 +25,16 @@ export class MovieNightStack extends cdk.Stack {
         pointInTimeRecoveryEnabled: true,
       },
       globalSecondaryIndexes: [
+        // TODO: set projected attributes
         {
           indexName: 'GSI1',
           partitionKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
-          sortKey: { name: 'GSI_SK', type: dynamodb.AttributeType.STRING },
+          sortKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
+        },
+        {
+          indexName: 'GSI2',
+          partitionKey: { name: 'email', type: dynamodb.AttributeType.STRING },
+          projectionType: ProjectionType.KEYS_ONLY
         },
       ]
     });
@@ -62,7 +69,7 @@ export class MovieNightStack extends cdk.Stack {
             "dynamodb:Update*",
             "dynamodb:PutItem"
           ],
-          resources: [table.tableArn]
+          resources: [table.tableArn, `${table.tableArn}/*`]
         })
       ]
     }))
