@@ -10,13 +10,14 @@ export class CourtographStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    const table = new dynamodb.TableV2(this, 'CourtoggraphGamesTable', {
+    const table = new dynamodb.TableV2(this, 'CourtographGamesTable', {
       tableName: 'courtograph-games-table',
       billing: dynamodb.Billing.onDemand({
         maxReadRequestUnits: 50,
         maxWriteRequestUnits: 25
       }),
       partitionKey: { name: 'gameId', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'date', type: dynamodb.AttributeType.NUMBER },
       deletionProtection: true,
       timeToLiveAttribute: 'ttl',
       removalPolicy: cdk.RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
@@ -25,10 +26,10 @@ export class CourtographStack extends cdk.Stack {
       }
     });
 
-    const execUser = new iam.User(this, 'CourtoggraphUser', {
+    const execUser = new iam.User(this, 'CourtographUser', {
       userName: 'courtograph-exec-user'
     })
-    execUser.attachInlinePolicy(new iam.Policy(this, 'CourtoggraphExecPolicy', {
+    execUser.attachInlinePolicy(new iam.Policy(this, 'CourtographExecPolicy', {
       statements: [
         new iam.PolicyStatement({
           sid: 'DynamoDBReadAccess',
