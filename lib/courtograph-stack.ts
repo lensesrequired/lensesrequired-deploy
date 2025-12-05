@@ -2,7 +2,7 @@ import * as cdk from 'aws-cdk-lib';
 import {SecretValue} from 'aws-cdk-lib';
 import {Construct} from 'constructs';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
-import {ProjectionType} from 'aws-cdk-lib/aws-dynamodb';
+import {CapacityMode} from 'aws-cdk-lib/aws-dynamodb';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 
@@ -10,14 +10,14 @@ export class CourtographStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    const table = new dynamodb.TableV2(this, 'CourtographGamesTable', {
+    const table = new dynamodb.Table(this, 'CourtographGamesTable', {
       tableName: 'courtograph-games-table',
-      billing: dynamodb.Billing.onDemand({
-        maxReadRequestUnits: 50,
-        maxWriteRequestUnits: 25
-      }),
-      partitionKey: { name: 'gameId', type: dynamodb.AttributeType.STRING },
-      sortKey: { name: 'date', type: dynamodb.AttributeType.NUMBER },
+      billingMode: dynamodb.BillingMode.PROVISIONED,
+      partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
+      readCapacity: 10,
+      writeCapacity: 5,
+
       deletionProtection: true,
       timeToLiveAttribute: 'ttl',
       removalPolicy: cdk.RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
@@ -25,6 +25,24 @@ export class CourtographStack extends cdk.Stack {
         pointInTimeRecoveryEnabled: true,
       }
     });
+
+    table.addGlobalSecondaryIndex({
+      indexName: 'PerSeasonIndex',
+      partitionKey: { name: 'Season', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL,
+      readCapacity: 5,
+      writeCapacity: 5
+    })
+
+    table.addGlobalSecondaryIndex({
+      indexName: 'GamesPerIndex',
+      partitionKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'Game', type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL,
+      readCapacity: 5,
+      writeCapacity: 5
+    })
 
     const execUser = new iam.User(this, 'CourtographUser', {
       userName: 'courtograph-exec-user'
