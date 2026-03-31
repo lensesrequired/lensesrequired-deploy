@@ -2,7 +2,6 @@ import * as cdk from 'aws-cdk-lib';
 import {SecretValue} from 'aws-cdk-lib';
 import {Construct} from 'constructs';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
-import {CapacityMode} from 'aws-cdk-lib/aws-dynamodb';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 
@@ -10,8 +9,8 @@ export class CourtographStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    const table = new dynamodb.Table(this, 'CourtographGamesTable', {
-      tableName: 'courtograph-games-table',
+    const table = new dynamodb.Table(this, 'CourtographTable', {
+      tableName: 'courtograph-table',
       billingMode: dynamodb.BillingMode.PROVISIONED,
       partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
