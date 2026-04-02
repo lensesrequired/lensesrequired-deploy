@@ -9,11 +9,11 @@ export class CourtographStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    const table = new dynamodb.TableV2(this, 'CourtographTable', {
+    const table = new dynamodb.TableV2(this, 'CourtographTable2', {
       tableName: 'courtograph-table-v2',
       billing: dynamodb.Billing.onDemand({
-        maxReadRequestUnits: 10,
-        maxWriteRequestUnits: 25
+        maxReadRequestUnits: 20,
+        maxWriteRequestUnits: 10
       }),
       partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
@@ -23,12 +23,12 @@ export class CourtographStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
       pointInTimeRecoverySpecification: {
         pointInTimeRecoveryEnabled: true,
-      }
+      },
     });
 
     table.addGlobalSecondaryIndex({
       indexName: 'PerSeasonIndex',
-      partitionKey: { name: 'Season', type: dynamodb.AttributeType.STRING },
+      partitionKey: { name: 'seasonId', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
       projectionType: dynamodb.ProjectionType.ALL,
       maxReadRequestUnits: 5,
@@ -38,7 +38,7 @@ export class CourtographStack extends cdk.Stack {
     table.addGlobalSecondaryIndex({
       indexName: 'GamesPerIndex',
       partitionKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
-      sortKey: { name: 'Game', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'gameId', type: dynamodb.AttributeType.STRING },
       projectionType: dynamodb.ProjectionType.ALL,
       maxReadRequestUnits: 5,
       maxWriteRequestUnits: 5
