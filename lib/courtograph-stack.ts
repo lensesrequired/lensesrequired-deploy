@@ -9,13 +9,14 @@ export class CourtographStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    const table = new dynamodb.Table(this, 'CourtographTable', {
-      tableName: 'courtograph-table',
-      billingMode: dynamodb.BillingMode.PROVISIONED,
+    const table = new dynamodb.TableV2(this, 'CourtographTable', {
+      tableName: 'courtograph-table-v2',
+      billing: dynamodb.Billing.onDemand({
+        maxReadRequestUnits: 10,
+        maxWriteRequestUnits: 25
+      }),
       partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
-      readCapacity: 10,
-      writeCapacity: 5,
 
       deletionProtection: true,
       timeToLiveAttribute: 'ttl',
@@ -30,8 +31,8 @@ export class CourtographStack extends cdk.Stack {
       partitionKey: { name: 'Season', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
       projectionType: dynamodb.ProjectionType.ALL,
-      readCapacity: 5,
-      writeCapacity: 5
+      maxReadRequestUnits: 5,
+      maxWriteRequestUnits: 5
     })
 
     table.addGlobalSecondaryIndex({
@@ -39,8 +40,8 @@ export class CourtographStack extends cdk.Stack {
       partitionKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'Game', type: dynamodb.AttributeType.STRING },
       projectionType: dynamodb.ProjectionType.ALL,
-      readCapacity: 5,
-      writeCapacity: 5
+      maxReadRequestUnits: 5,
+      maxWriteRequestUnits: 5
     })
 
     const execUser = new iam.User(this, 'CourtographUser', {
