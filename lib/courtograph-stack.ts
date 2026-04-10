@@ -13,7 +13,7 @@ export class CourtographStack extends cdk.Stack {
       tableName: 'courtograph-table-v2',
       billing: dynamodb.Billing.onDemand({
         maxReadRequestUnits: 20,
-        maxWriteRequestUnits: 10
+        maxWriteRequestUnits: 20
       }),
       partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
