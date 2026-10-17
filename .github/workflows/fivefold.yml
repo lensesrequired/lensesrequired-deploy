@@ -1,0 +1,49 @@
+name: Fivefold infrastructure
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: Deploy the foundation stack to the protected fivefold environment
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test -- --runInBand
+      - run: npx cdk synth FivefoldStack --quiet
+        env:
+          CDK_DEFAULT_ACCOUNT: '123456789012'
+          CDK_DEFAULT_REGION: us-east-1
+  deploy:
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: fivefold
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.FIVEFOLD_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - run: npx cdk deploy FivefoldStack --exclusively --require-approval never
