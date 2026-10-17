@@ -73,12 +73,28 @@ exports[`MovieNightStack matches snapshot 1`] = `
                 "dynamodb:PutItem",
               ],
               "Effect": "Allow",
-              "Resource": {
-                "Fn::GetAtt": [
-                  "MovieNightTableF882A7F3",
-                  "Arn",
-                ],
-              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "MovieNightTableF882A7F3",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "MovieNightTableF882A7F3",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
               "Sid": "DynamoDBWriteAccess",
             },
           ],
@@ -117,7 +133,7 @@ exports[`MovieNightStack matches snapshot 1`] = `
             "AttributeType": "S",
           },
           {
-            "AttributeName": "GSI_SK",
+            "AttributeName": "email",
             "AttributeType": "S",
           },
         ],
@@ -131,12 +147,24 @@ exports[`MovieNightStack matches snapshot 1`] = `
                 "KeyType": "HASH",
               },
               {
-                "AttributeName": "GSI_SK",
+                "AttributeName": "PK",
                 "KeyType": "RANGE",
               },
             ],
             "Projection": {
               "ProjectionType": "ALL",
+            },
+          },
+          {
+            "IndexName": "GSI2",
+            "KeySchema": [
+              {
+                "AttributeName": "email",
+                "KeyType": "HASH",
+              },
+            ],
+            "Projection": {
+              "ProjectionType": "KEYS_ONLY",
             },
           },
         ],
@@ -156,6 +184,9 @@ exports[`MovieNightStack matches snapshot 1`] = `
             "GlobalSecondaryIndexes": [
               {
                 "IndexName": "GSI1",
+              },
+              {
+                "IndexName": "GSI2",
               },
             ],
             "PointInTimeRecoverySpecification": {
