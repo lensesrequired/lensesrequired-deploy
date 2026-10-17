@@ -31,7 +31,14 @@ test('retains protected PK/SK storage without duplicating canonical NBA data', (
   });
   t.resourceCountIs('AWS::Lambda::Function', 0);
   t.resourceCountIs('AWS::Scheduler::Schedule', 0);
-  t.resourceCountIs('AWS::IAM::AccessKey', 0);
+  t.resourceCountIs('AWS::IAM::AccessKey', 1);
+  t.hasResourceProperties('AWS::IAM::User', { UserName: 'fivefold-exec-user', ManagedPolicyArns: Match.anyValue() });
+  t.resourceCountIs('AWS::SecretsManager::Secret', 1);
+  const secrets = t.findResources('AWS::SecretsManager::Secret');
+  expect(Object.keys(secrets).some(id => id.includes('SessionSecret'))).toBe(false);
+  const keySecret = Object.entries(secrets).find(([id]) => id.startsWith('FivefoldAccessKeySecret'));
+  expect(JSON.stringify(keySecret)).toContain('SecretAccessKey');
+  expect(JSON.stringify(keySecret)).toContain('AccessKeyId');
   t.hasResourceProperties('AWS::S3::Bucket', {
     VersioningConfiguration: { Status: 'Enabled' },
     PublicAccessBlockConfiguration: {

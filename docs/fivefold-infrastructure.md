@@ -24,14 +24,13 @@ Stack outputs:
 | CourtographTable | Set job `COURTOGRAPH_TABLE` |
 | ApplicationPolicyArn | Attach to a dedicated existing host identity |
 | ApplicationRoleArn | Optional role, created with `applicationPrincipalArn` context |
-| SessionSecretArn | Host retrieves secret value into server-only `SESSION_SECRET` |
-| SourceCredentialsSecretArn | Populate JSON with unattended source credentials out of band |
+| FivefoldAccessKeySecretArn | Retrieve `AccessKeyId` and `SecretAccessKey` for server-side AWS credentials |
 | RawArchiveBucket | Versioned ingestion archive |
 | JobFailuresQueueUrl | Failed scheduler deliveries and Lambda asynchronous failures |
 | OperationalAlertsTopicArn | Subscribe operators to error/throttle/backlog alerts |
 | *FunctionArn | Emitted for each configured job |
 
-The current application does not load Secrets Manager itself: its hosting configuration must inject the session secret value, not its ARN. No AWS access keys are generated. The application policy permits game item reads/writes and conditional transaction operations, canonical NBA reads, and session-secret retrieval. It forbids scans and table administration. Attach it only to a dedicated application identity; alternatively set `applicationPrincipalArn` to the existing IAM host role authorized to assume the generated role and configure the host's assume-role permission/credential provider. Hosting itself is not defined by the spec.
+The dedicated `fivefold-exec-user` uses the application policy: Fivefold item reads/writes (including conditional transaction operations) and read-only access to the existing Courtograph table and indexes. Its generated access key is stored in `FivefoldAccessKeySecret` with `Username`, `AccessKeyId`, and `SecretAccessKey`, matching the other stacks. Retrieve the values in Secrets Manager and set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` in local `.env` and Vercel server environment settings, along with `AWS_REGION` and `FIVEFOLD_TABLE`. Never expose these through `NEXT_PUBLIC_` variables or commit them. The application uses the SDK default credential chain; it does not fetch this secret itself. Manage `SESSION_SECRET` separately through `.env` and Vercel. The optional application role remains available for hosts using role credentials.
 
 ## Real job bundles and schedules
 
@@ -48,7 +47,7 @@ The foundation is deployable without jobs. Job code belongs to the application/C
 
 The rate above is an illustration, not an agreed product deadline. Supply the object through a local CDK context file or `-c 'fivefoldJobs={...}'`. Initially deploy disabled, inspect the synthesized IAM and manually invoke against test data, then explicitly enable. The stack does not guess the source publication timezone, selection deadline, finalization grace period or automatic week-opening policy. Scheduler cron timezone supports DST; handlers must calculate contest boundaries in America/Denver and enforce per-league UTC deadlines independently of scheduler execution.
 
-Each invocation receives `{ "job": "lockWeek", "scheduledTime": "..." }` (with its job name). Four game jobs receive game-table item access and Courtograph read access. Ingestion receives canonical table item access, archive read/write and source-secret retrieval, without game-table write access. Ingestion must fail clearly until valid source credentials exist; the generated secret's `configured:false` marker is not a usable credential. Source licensing and unattended Drive access must be verified separately.
+Each invocation receives `{ "job": "lockWeek", "scheduledTime": "..." }` (with its job name). Four game jobs receive game-table item access and Courtograph read access. Ingestion receives canonical table item access and archive read/write, without game-table write access. Source authentication will be configured when the ingestion integration is implemented. Source licensing and unattended Drive access must be verified separately.
 
 Handlers must be idempotent and conditional: duplicate invocation and concurrent application writes remain possible despite per-function concurrency of one. Freeze entrants/queues at lock, use transactions/state versions, preserve failure metadata, archive file revision/checksum, and rebuild corrected aggregates. Scoring must query changed data on subsequent runs; ingestion does not directly invoke scoring. Implement durable player IDs, checkpoints, due-work discovery and reconciliation in their owning repositories. Never mark a job successful before all writes complete.
 

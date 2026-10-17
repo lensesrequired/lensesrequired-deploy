@@ -58,21 +58,23 @@ export class FivefoldStack extends cdk.Stack {
       versioned: true,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
-    const sessionSecret = new secretsmanager.Secret(this, 'SessionSecret', {
-      generateSecretString: { passwordLength: 64, excludePunctuation: true },
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
-    });
-    // Populate this JSON secret out of band with unattended source credentials.
-    const sourceSecret = new secretsmanager.Secret(this, 'SourceCredentials', {
-      generateSecretString: { secretStringTemplate: '{"configured":false}', generateStringKey: 'placeholder' },
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
-    });
     const appPolicy = new iam.ManagedPolicy(this, 'ApplicationPolicy', {
       statements: [
         new iam.PolicyStatement({ actions: writeActions, resources: [table.tableArn] }),
         new iam.PolicyStatement({ actions: readActions, resources: [nba.tableArn, `${nba.tableArn}/index/*`] }),
-        new iam.PolicyStatement({ actions: ['secretsmanager:GetSecretValue'], resources: [sessionSecret.secretArn] }),
       ],
+    });
+    const execUser = new iam.User(this, 'FivefoldUser', {
+      userName: 'fivefold-exec-user',
+      managedPolicies: [appPolicy],
+    });
+    const accessKey = new iam.AccessKey(this, 'FivefoldExecUserAccessKey', { user: execUser });
+    const accessKeySecret = new secretsmanager.Secret(this, 'FivefoldAccessKeySecret', {
+      secretObjectValue: {
+        Username: cdk.SecretValue.unsafePlainText(execUser.userName),
+        AccessKeyId: cdk.SecretValue.unsafePlainText(accessKey.accessKeyId),
+        SecretAccessKey: accessKey.secretAccessKey,
+      },
     });
     if (props.applicationPrincipalArn) {
       const role = new iam.Role(this, 'ApplicationRole', {
@@ -115,8 +117,7 @@ export class FivefoldStack extends cdk.Stack {
         environment: {
           FIVEFOLD_TABLE: table.tableName, COURTOGRAPH_TABLE: nba.tableName,
           JOB_NAME: name, WEEK_TIME_ZONE: 'America/Denver',
-          ...(name === 'ingest' ? { RAW_ARCHIVE_BUCKET: archive.bucketName,
-            SOURCE_CREDENTIALS_SECRET_ARN: sourceSecret.secretArn } : {}),
+          ...(name === 'ingest' ? { RAW_ARCHIVE_BUCKET: archive.bucketName } : {}),
         },
         retryAttempts: 2, maxEventAge: cdk.Duration.hours(6),
         onFailure: new destinations.SqsDestination(failures),
@@ -129,7 +130,6 @@ export class FivefoldStack extends cdk.Stack {
         fn.addToRolePolicy(new iam.PolicyStatement({ actions: writeActions, resources: [table.tableArn] }));
       } else {
         archive.grantReadWrite(fn);
-        sourceSecret.grantRead(fn);
       }
       const scheduleRole = new iam.Role(this, `${name}ScheduleRole`, {
         assumedBy: new iam.ServicePrincipal('scheduler.amazonaws.com', {
@@ -156,8 +156,8 @@ export class FivefoldStack extends cdk.Stack {
     }
     for (const [key, value] of Object.entries({
       FivefoldTable: table.tableName, AwsRegion: this.region, CourtographTable: nba.tableName,
-      ApplicationPolicyArn: appPolicy.managedPolicyArn, SessionSecretArn: sessionSecret.secretArn,
-      SourceCredentialsSecretArn: sourceSecret.secretArn, RawArchiveBucket: archive.bucketName,
+      ApplicationPolicyArn: appPolicy.managedPolicyArn, FivefoldAccessKeySecretArn: accessKeySecret.secretArn,
+      RawArchiveBucket: archive.bucketName,
       JobFailuresQueueUrl: failures.queueUrl, OperationalAlertsTopicArn: topic.topicArn,
     })) new cdk.CfnOutput(this, key, { value });
   }
