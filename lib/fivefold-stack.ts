@@ -40,7 +40,8 @@ export class FivefoldStack extends cdk.Stack {
     for (const name of Object.keys(props.jobs ?? {})) {
       if (!(jobNames as readonly string[]).includes(name)) throw new Error(`Unknown job: ${name}`);
     }
-    const table = new dynamodb.TableV2(this, 'GameTable', {
+    const table = new dynamodb.TableV2(this, 'FivefoldTable', {
+      tableName: 'fivefold-game',
       partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
       billing: dynamodb.Billing.onDemand(),
@@ -51,14 +52,14 @@ export class FivefoldStack extends cdk.Stack {
     });
     const nba = dynamodb.Table.fromTableName(this, 'ExistingCourtographTable',
       props.courtographTableName ?? 'courtograph-table-v2');
-    const archive = new s3.Bucket(this, 'RawArchive', {
+    const archive = new s3.Bucket(this, 'FivefoldRawArchive', {
       encryption: s3.BucketEncryption.S3_MANAGED,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       enforceSSL: true,
       versioned: true,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
-    const appPolicy = new iam.ManagedPolicy(this, 'ApplicationPolicy', {
+    const appPolicy = new iam.ManagedPolicy(this, 'FivefoldExecPolicy', {
       statements: [
         new iam.PolicyStatement({ actions: writeActions, resources: [table.tableArn] }),
         new iam.PolicyStatement({ actions: readActions, resources: [nba.tableArn, `${nba.tableArn}/index/*`] }),
@@ -77,20 +78,20 @@ export class FivefoldStack extends cdk.Stack {
       },
     });
     if (props.applicationPrincipalArn) {
-      const role = new iam.Role(this, 'ApplicationRole', {
+      const role = new iam.Role(this, 'FivefoldApplicationRole', {
         assumedBy: new iam.ArnPrincipal(props.applicationPrincipalArn),
         managedPolicies: [appPolicy],
       });
       new cdk.CfnOutput(this, 'ApplicationRoleArn', { value: role.roleArn });
     }
-    const topic = new sns.Topic(this, 'OperationalAlerts');
-    const failures = new sqs.Queue(this, 'JobFailures', {
+    const topic = new sns.Topic(this, 'FivefoldOperationalAlerts');
+    const failures = new sqs.Queue(this, 'FivefoldJobFailures', {
       encryption: sqs.QueueEncryption.SQS_MANAGED,
       enforceSSL: true,
       retentionPeriod: cdk.Duration.days(14),
     });
     const alarm = (name: string, metric: cloudwatch.IMetric, threshold = 1) => {
-      const result = new cloudwatch.Alarm(this, name, {
+      const result = new cloudwatch.Alarm(this, `Fivefold${name}`, {
         metric, threshold, evaluationPeriods: 1,
         comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
         treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
@@ -106,10 +107,10 @@ export class FivefoldStack extends cdk.Stack {
         throw new Error(`Invalid configuration for ${name}: assetPath, cron/rate, timeZone and boolean enabled required`);
       }
       new Intl.DateTimeFormat('en-US', { timeZone: config.timeZone });
-      const logGroup = new logs.LogGroup(this, `${name}Logs`, {
+      const logGroup = new logs.LogGroup(this, `Fivefold${name[0].toUpperCase()}${name.slice(1)}Logs`, {
         retention: logs.RetentionDays.ONE_MONTH, removalPolicy: cdk.RemovalPolicy.RETAIN,
       });
-      const fn = new lambda.Function(this, `${name}Function`, {
+      const fn = new lambda.Function(this, `Fivefold${name[0].toUpperCase()}${name.slice(1)}Function`, {
         runtime: lambda.Runtime.NODEJS_22_X,
         handler: 'index.handler', code: lambda.Code.fromAsset(config.assetPath),
         timeout: cdk.Duration.minutes(15), memorySize: 1024,
@@ -131,14 +132,14 @@ export class FivefoldStack extends cdk.Stack {
       } else {
         archive.grantReadWrite(fn);
       }
-      const scheduleRole = new iam.Role(this, `${name}ScheduleRole`, {
+      const scheduleRole = new iam.Role(this, `Fivefold${name[0].toUpperCase()}${name.slice(1)}ScheduleRole`, {
         assumedBy: new iam.ServicePrincipal('scheduler.amazonaws.com', {
           conditions: { StringEquals: { 'aws:SourceAccount': this.account } },
         }),
       });
       fn.grantInvoke(scheduleRole);
       failures.grantSendMessages(scheduleRole);
-      new scheduler.CfnSchedule(this, `${name}Schedule`, {
+      new scheduler.CfnSchedule(this, `Fivefold${name[0].toUpperCase()}${name.slice(1)}Schedule`, {
         flexibleTimeWindow: { mode: 'OFF' },
         scheduleExpression: config.scheduleExpression,
         scheduleExpressionTimezone: config.timeZone,
@@ -159,6 +160,9 @@ export class FivefoldStack extends cdk.Stack {
       ApplicationPolicyArn: appPolicy.managedPolicyArn, FivefoldAccessKeySecretArn: accessKeySecret.secretArn,
       RawArchiveBucket: archive.bucketName,
       JobFailuresQueueUrl: failures.queueUrl, OperationalAlertsTopicArn: topic.topicArn,
-    })) new cdk.CfnOutput(this, key, { value });
+    })) {
+      const output = new cdk.CfnOutput(this, `${key}Output`, { value });
+      output.overrideLogicalId(key);
+    }
   }
 }

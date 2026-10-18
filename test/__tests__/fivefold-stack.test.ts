@@ -22,6 +22,7 @@ test('retains protected PK/SK storage without duplicating canonical NBA data', (
   t.hasResource('AWS::DynamoDB::GlobalTable', {
     UpdateReplacePolicy: 'Retain', DeletionPolicy: 'RetainExceptOnCreate',
     Properties: Match.objectLike({
+      TableName: 'fivefold-game',
       BillingMode: 'PAY_PER_REQUEST',
       KeySchema: [{ AttributeName: 'PK', KeyType: 'HASH' }, { AttributeName: 'SK', KeyType: 'RANGE' }],
       Replicas: [Match.objectLike({ DeletionProtectionEnabled: true,
@@ -80,7 +81,7 @@ test('jobs have explicit schedules, scoped access, retry and execution failure h
   const policies = Object.values(t.findResources('AWS::IAM::Policy'));
   const ingestion = policies.find(p => JSON.stringify(p).includes('s3:GetObject*'));
   expect(ingestion).toBeDefined();
-  expect(JSON.stringify(ingestion)).not.toContain('GameTable');
+  expect(JSON.stringify(ingestion)).not.toContain('FivefoldTable');
   expect(JSON.stringify(policies)).not.toContain('dynamodb:Scan');
 });
 

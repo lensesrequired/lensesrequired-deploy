@@ -13,7 +13,7 @@ npx cdk diff FivefoldStack
 npx cdk deploy FivefoldStack --exclusively
 ```
 
-Use the intended AWS account/region and bootstrap it with CDK before first deployment. This stack imports `courtograph-table-v2` by name without changing it; set CDK context `courtographTableName` to override. Verify the actual deployed key schema and authorization before enabling integration. The game table uses on-demand billing, PITR, deletion protection, retained data and optional TTL (`ttl`, epoch seconds). The private S3 source archive is encrypted, versioned, TLS-only and retained; no automatic expiry is imposed on replay data.
+Use the intended AWS account/region and bootstrap it with CDK before first deployment. This stack imports `courtograph-table-v2` by name without changing it; set CDK context `courtographTableName` to override. Verify the actual deployed key schema and authorization before enabling integration. The game table is explicitly named `fivefold-game` and uses on-demand billing, PITR, deletion protection, retained data and optional TTL (`ttl`, epoch seconds). The private S3 source archive is encrypted, versioned, TLS-only and retained; no automatic expiry is imposed on replay data.
 
 Stack outputs:
 
@@ -58,3 +58,9 @@ Scheduler retries failed delivery three times within one hour; Lambda retries fa
 GitHub Actions runs typecheck, tests and offline foundation synthesis on PRs/pushes. Deployment is manual (`workflow_dispatch`, deploy=true), gated by a GitHub `fivefold` environment, with AWS OIDC and no stored access keys. Configure environment variables `FIVEFOLD_DEPLOY_ROLE_ARN` and `AWS_REGION`, environment reviewers, and an existing deployment role whose OIDC trust restricts the repository and `environment:fivefold`. Bootstrap permissions are managed outside this stack. The workflow deploys only FivefoldStack.
 
 The workflow currently deploys the foundation only. Before enabling job deployment, add reproducible artifact acquisition/build and the reviewed `fivefoldJobs` context to both synth and deploy steps. Do not use this foundation-only workflow against a stack with locally configured jobs: missing context would remove those job resources. Review `cdk diff` with the exact context before each change. No deployment has been performed as part of writing this code.
+
+## Resource naming and existing deployments
+
+As in the other stacks, owned constructs use a `Fivefold` prefix; the IAM execution policy is `FivefoldExecPolicy`. The table and execution user have explicit lowercase physical names (`fivefold-game`, `fivefold-exec-user`). Other resources keep CDK-generated physical names containing their Fivefold construct names, matching the existing secret naming convention.
+
+Applying this naming update to an existing deployment creates the named table rather than renaming or migrating the previous generated table. The previous table is retained; migrate any existing data separately before directing traffic to the new table. Renamed archive/log constructs also retain their previous data resources. Review `cdk diff` before deployment for resource replacements. An existing unrelated `fivefold-game` table must be imported or otherwise reconciled before this stack can create that name.
