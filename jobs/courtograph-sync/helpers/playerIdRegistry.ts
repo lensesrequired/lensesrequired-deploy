@@ -17,27 +17,46 @@ export type PlayerIdsFile = Record<string, string>;
 
 /** Strip a leading source ID from values like "1642345/Oso Ighodaro". */
 export function normalizePlayerName(fullName: string): string {
-  const name = (fullName.includes("/") ? fullName.split("/", 2)[1] : fullName).trim();
+  const name = (fullName.includes("/") ? fullName.split("/", 2)[1] : fullName).trim().replace(/\s+/g, " ");
   return name.toLowerCase() === "undefined" ? "" : name;
 }
 
-/**
- * Slugify a full name: "Austin Reaves" -> "austin_reeves".
- * Non-alphanumeric runs become single underscores; trimmed.
- */
+/** Matching key only: keep the original spelling separately for display and saved aliases. */
+export function playerNameKey(fullName: string): string {
+  return normalizePlayerName(fullName).normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase();
+}
+
+/** Slugify the accent-insensitive matching key without dropping accented letters. */
 export function slugifyPlayerName(fullName: string): string {
-  const s = normalizePlayerName(fullName)
-    .trim()
-    .toLowerCase()
+  return playerNameKey(fullName)
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "")
-    .replace(/_+/g, "_");
-  return s || "player";
+    .replace(/_+/g, "_") || "player";
+}
+
+export interface PlayerIdConflict {
+  key: string;
+  aliases: Array<{name: string; id: string}>;
+}
+
+export function findPlayerIdConflicts(data: PlayerIdsFile): PlayerIdConflict[] {
+  const groups = new Map<string, Array<{name: string; id: string}>>();
+  for (const [name, id] of Object.entries(data)) {
+    if (typeof id !== "string") continue;
+    const key = playerNameKey(name);
+    if (!key) continue;
+    const aliases = groups.get(key) ?? [];
+    aliases.push({name, id});
+    groups.set(key, aliases);
+  }
+  return [...groups].filter(([, aliases]) => new Set(aliases.map(alias => alias.id)).size > 1)
+    .map(([key, aliases]) => ({key, aliases}));
 }
 
 export class PlayerIdRegistry {
   /** Full name (as in PBP) -> assigned id */
   private readonly nameToId = new Map<string, string>();
+  private readonly keyToId = new Map<string, string>();
   private readonly usedIds = new Set<string>();
 
   /** Load from disk; no-op if file missing. */
@@ -46,11 +65,22 @@ export class PlayerIdRegistry {
     const raw = fs.readFileSync(filePath, "utf-8");
     if (!raw.trim()) return;
     const data = JSON.parse(raw) as PlayerIdsFile;
+    const conflicts = findPlayerIdConflicts(data);
+    if (conflicts.length) {
+      throw new Error(`Player ID aliases conflict in ${filePath}; review before merging: ${JSON.stringify(conflicts)}`);
+    }
+    // Validate against any entries already loaded before mutating this registry.
+    for (const [name, id] of Object.entries(data)) {
+      if (typeof id !== "string") continue;
+      const existing = this.keyToId.get(playerNameKey(name));
+      if (existing !== undefined && existing !== id) throw new Error(`Conflicting existing player ID for ${name}: ${existing} / ${id}`);
+    }
     for (const [name, id] of Object.entries(data)) {
       if (typeof name !== "string" || typeof id !== "string") continue;
       const normalized = normalizePlayerName(name);
       if (!normalized) continue;
       this.nameToId.set(normalized, id);
+      this.keyToId.set(playerNameKey(normalized), id);
       this.usedIds.add(id);
     }
   }
@@ -65,14 +95,18 @@ export class PlayerIdRegistry {
   }
 
   /**
-   * Return stable id for this exact full name; allocate base slug or base+number if taken.
+   * Return the stable id across accents, case and whitespace; allocate base slug or base+number if taken.
    */
   ensureId(fullName: string): string {
     const trimmed = normalizePlayerName(fullName);
     if (!trimmed) return "";
 
-    const existing = this.nameToId.get(trimmed);
-    if (existing !== undefined) return existing;
+    const key = playerNameKey(trimmed);
+    const existing = this.keyToId.get(key);
+    if (existing !== undefined) {
+      this.nameToId.set(trimmed, existing);
+      return existing;
+    }
 
     const base = slugifyPlayerName(trimmed);
     let n = 0;
@@ -83,6 +117,7 @@ export class PlayerIdRegistry {
     }
 
     this.nameToId.set(trimmed, candidate);
+    this.keyToId.set(key, candidate);
     this.usedIds.add(candidate);
     return candidate;
   }
