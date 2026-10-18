@@ -22,8 +22,13 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
+      - run: npm run build:courtograph-sync
       - run: npm test -- --runInBand
       - run: npx cdk synth FivefoldStack --quiet
+        env:
+          CDK_DEFAULT_ACCOUNT: '123456789012'
+          CDK_DEFAULT_REGION: us-east-1
+      - run: npx cdk synth CourtographStack --quiet
         env:
           CDK_DEFAULT_ACCOUNT: '123456789012'
           CDK_DEFAULT_REGION: us-east-1
@@ -42,6 +47,7 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - run: npm run build:courtograph-sync
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.FIVEFOLD_DEPLOY_ROLE_ARN }}

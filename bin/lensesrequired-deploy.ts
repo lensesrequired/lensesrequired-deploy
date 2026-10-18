@@ -2,7 +2,7 @@
 import * as cdk from 'aws-cdk-lib';
 import { MovieNightStack } from '../lib/movie-night-stack';
 import { JournalStack } from "../lib/journal-stack";
-import {CourtographStack} from "../lib/courtograph-stack";
+import {CourtographStack, CourtographSyncConfig} from "../lib/courtograph-stack";
 
 const app = new cdk.App();
 new MovieNightStack(app, 'MovieNightStack', {
@@ -11,8 +11,14 @@ new MovieNightStack(app, 'MovieNightStack', {
 new JournalStack(app, 'JournalStack', {
   env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION }
 });
+const syncEnabledContext = app.node.tryGetContext('courtographSyncEnabled');
+const courtographSync: CourtographSyncConfig = {
+  driveFolderId: app.node.tryGetContext('courtographDriveFolderId') ?? '1AUlATK2q3pqF0JHgkl3gP1P0DRVu_6T3',
+  enabled: syncEnabledContext === true || syncEnabledContext === 'true',
+};
 new CourtographStack(app, 'CourtographStack', {
-  env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION }
+  env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
+  sync: courtographSync,
 });
 
 // NBA Rivals / Fivefold resources are isolated from existing application stacks.

@@ -6,6 +6,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "build:courtograph-sync": "tsc --project jobs/courtograph-sync/tsconfig.json && node jobs/courtograph-sync/package.cjs",
     "watch": "tsc -w",
     "test": "jest",
     "cdk": "cdk",
@@ -22,6 +23,7 @@
   },
   "dependencies": {
     "aws-cdk-lib": "^2.231.0",
-    "constructs": "^10.0.0"
+    "constructs": "^10.0.0",
+    "csvtojson": "2.0.14"
   }
 }

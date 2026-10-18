@@ -1,0 +1,22 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.createEmptyStats = void 0;
+const createEmptyStats = () => ({
+    foulsAll: 0,
+    foulsTechnical: 0,
+    foulsFlagrant: 0,
+    fieldGoalsAttempts: 0,
+    fieldGoalsMade: 0,
+    threePointersAttempts: 0,
+    threePointersMade: 0,
+    freeThrowsAttempts: 0,
+    freeThrowsMade: 0,
+    reboundsTotal: 0,
+    reboundsOffensive: 0,
+    reboundsDefensive: 0,
+    assists: 0,
+    steals: 0,
+    blocks: 0,
+    turnovers: 0,
+});
+exports.createEmptyStats = createEmptyStats;

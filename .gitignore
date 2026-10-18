@@ -4,6 +4,9 @@
 *.js
 !jest.config.js
 *.d.ts
+!jobs/courtograph-sync/aws-sdk-runtime.d.ts
+!jobs/courtograph-sync/dist/
+!jobs/courtograph-sync/dist/**/*.js
 node_modules
 
 # CDK asset staging directory
